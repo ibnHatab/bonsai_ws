@@ -10,14 +10,16 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ## Calibrate camera intrinsics
 
+Dart setup with https://github.com/basler/pylon-ros-camera
+
 ROS includes a standardised camera intrinsic calibration process through camera_calibration package (http://wiki.ros.org/camera_calibration).
 
 Apply intrinsics to ROS node
 ```
 rosrun pylon_camera set_device_user_id daA1280_54uc
+rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.025 image:=/pylon_camera_node/image_raw camera:=/pylon_camera_node
 ```
-with content from calibration/ost.yaml
-path pylon_camera with camera_setup.diff
+with content from calibration/ost.yaml and path pylon_camera with camera_setup.diff
 
 ## Calibrate camera extrinsics
 
