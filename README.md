@@ -8,6 +8,22 @@ To make it easy for you to get started with GitLab, here's a list of recommended
 
 Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
+## Calibrate camera intrinsics
+
+ROS includes a standardised camera intrinsic calibration process through camera_calibration package (http://wiki.ros.org/camera_calibration).
+
+Apply intrinsics to ROS node
+```
+rosrun pylon_camera set_device_user_id daA1280_54uc
+```
+with content from calibration/ost.yaml
+path pylon_camera with camera_setup.diff
+
+## Calibrate camera extrinsics
+
+
+
+
 ## Add your files
 
 - [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
