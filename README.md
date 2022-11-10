@@ -22,8 +22,13 @@ rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.025 image:=/
 with content from calibration/ost.yaml and path pylon_camera with camera_setup.diff
 
 ## Calibrate camera extrinsics
+Configuring the Xsens MTi node.
 
-
+Use Kalibr to adjust TF from IMU to CAM
+```
+rosbag record /imu/data /pylon_camera_node/image_raw
+rosrun kalibr kalibr_calibrate_imu_camera --bag /data/2022-11-09-20-05-36.bag --cam /data/cam_basler_camchain.yaml --imu /data/imu_xsense.yaml --target /data/april_6x6_80x80cm.yaml
+```
 
 
 ## Add your files
