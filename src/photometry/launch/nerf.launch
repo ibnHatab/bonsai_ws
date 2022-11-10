@@ -1,0 +1,22 @@
+<launch>
+  <arg name="model" default="$(find xsens_mti_driver)/urdf/MTi_6xx.urdf"/>
+  <arg name="rvizconfig" default="$(find photometry)/visualization.rviz" />
+
+  <include file="$(find xsens_mti_driver)/launch/xsens_mti_node.launch" />
+  <include file="$(find pylon_camera)/launch/pylon_camera_node.launch" />
+
+    <!-- Wire static transform from the world to velodyne frame -->
+    <node
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        name="imu_cam_tf"
+        output="screen"
+        args="0.05 0 -0.07 0 0 0 1 imu_link cam" />
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+  <node name="photometry_node" pkg="photometry" type="recorder.py" output="screen">
+	<param name="storage" type="string" value="/mnt/storage"/>
+  </node>
+
+</launch>
