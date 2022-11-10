@@ -15,7 +15,7 @@
 
   <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
-  <node name="photometry_node" pkg="photometry" type="recorder.py" output="screen">
+  <node name="recorder_node" pkg="photometry" type="recorder.py" output="screen">
 	<param name="storage" type="string" value="/mnt/storage"/>
   </node>
 
