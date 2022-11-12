@@ -9,3 +9,6 @@
 [submodule "src/rviz_write_button"]
 	path = src/rviz_write_button
 	url = https://github.com/TheCynosure/rviz_write_button.git
+[submodule "src/geonav_transform"]
+	path = src/geonav_transform
+	url = git@github.com:ibnHatab/geonav_transform.git

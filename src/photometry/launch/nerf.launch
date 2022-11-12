@@ -4,6 +4,11 @@
   <arg name="rvizconfig" default="$(find geonav_transform)/rviz/frames.rviz" />
 
 
+  <!-- For setting debug level to debug -->
+  <env name="ROSCONSOLE_CONFIG_FILE"
+       value="$(find photometry)/config/custom_rosconsole.conf"/>
+
+
   <include file="$(find photometry)/launch/xsens_mti_node.launch" />
   <include file="$(find photometry)/launch/pylon_camera_node.launch" />
   <include file="$(find photometry)/launch/geonav_transform.launch" />
