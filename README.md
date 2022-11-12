@@ -10,7 +10,13 @@ git submodule update --init --recursive
 
 ```
 
+
 ## Building
+
+  - Install Basler/ROS dependencies:
+```
+sudo sh -c 'echo "yaml https://raw.githubusercontent.com/basler/pylon-ros-camera/master/pylon_camera/rosdep/pylon_sdk.yaml" > /etc/ros/rosdep/sources.list.d/30-pylon_camera.list' && sudo rosdep update && sudo rosdep install --from-paths . --ignore-src --rosdistro=$ROS_DISTRO -y
+```
 
   - Copy xsens_ros_mti_driver folder from your MT SDK directory into your catkin workspace 'src' folder.
         Make sure the permissions are set to o+rw on your files and directories.
