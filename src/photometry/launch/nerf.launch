@@ -1,17 +1,33 @@
 <launch>
   <arg name="model" default="$(find xsens_mti_driver)/urdf/MTi_6xx.urdf"/>
-  <arg name="rvizconfig" default="$(find photometry)/visualization.rviz" />
+  <!-- <arg name="rvizconfig" default="$(find photometry)/visualization.rviz" /> -->
+  <arg name="rvizconfig" default="$(find geonav_transform)/rviz/frames.rviz" />
 
-  <include file="$(find xsens_mti_driver)/launch/xsens_mti_node.launch" />
-  <include file="$(find pylon_camera)/launch/pylon_camera_node.launch" />
 
-    <!-- Wire static transform from the world to velodyne frame -->
-    <node
-        pkg="tf2_ros"
-        type="static_transform_publisher"
-        name="imu_cam_tf"
-        output="screen"
-        args="0.05 0 -0.07 0 0 0 1 imu_link cam" />
+  <include file="$(find photometry)/launch/xsens_mti_node.launch" />
+  <include file="$(find photometry)/launch/pylon_camera_node.launch" />
+  <include file="$(find photometry)/launch/geonav_transform.launch" />
+
+  <!-- Wire static transform from the world to camera frame -->
+  <node
+      pkg="tf2_ros"
+      type="static_transform_publisher"
+      name="base_imu_tf"
+      output="screen"
+      args="0 0 0 0 0 0 1 base_link imu_link" />
+
+  <node
+      pkg="tf2_ros"
+      type="static_transform_publisher"
+      name="imu_cam_tf"
+      output="screen"
+      args="0.05 0 -0.07 0 0 0 1 imu_link cam_link" />
+
+  <node name="position_transform_node"
+		pkg="position_transform"
+		type="position_transform_node"
+		output="screen">
+  </node>
 
   <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />

@@ -1,0 +1,7 @@
+<launch>
+  <arg name="model" default="$(find xsens_mti_driver)/urdf/MTi_6xx.urdf"/>
+  <arg name="rvizconfig" default="$(find photometry)/visualization.rviz" />
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+</launch>
