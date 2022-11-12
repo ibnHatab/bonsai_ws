@@ -4,9 +4,35 @@
 
 ## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Clone ROS workspace from this repository. Init submodules and install dependenties.
+```
+git submodule update --init --recursive
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+```
+
+## Building
+
+  - Copy xsens_ros_mti_driver folder from your MT SDK directory into your catkin workspace 'src' folder.
+        Make sure the permissions are set to o+rw on your files and directories.
+
+  - Build xspublic from your catkin workspace:
+```
+ pushd src/xsens_ros_mti_driver/lib/xspublic && make && popd
+```
+  - Build driver and package:
+```
+  catkin_make
+```
+  - Source workspace:
+```
+  source devel/setup.bash
+```
+
+## Prepare hardware
+
+We use Basler Dart camera and Xsense MTi680 AHRS module.
+
+![NERF camera](docs/ahrs_cam.png "NERF camera")
 
 ## Calibrate camera intrinsics
 
