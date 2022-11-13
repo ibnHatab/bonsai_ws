@@ -61,6 +61,41 @@ Use Kalibr to adjust TF from IMU to CAM
 rosbag record /imu/data /pylon_camera_node/image_raw
 rosrun kalibr kalibr_calibrate_imu_camera --bag /data/2022-11-09-20-05-36.bag --cam /data/cam_basler_camchain.yaml --imu /data/imu_xsense.yaml --target /data/april_6x6_80x80cm.yaml
 ```
+## KOS
+Here we explain the coordinate conventions for using our repo.
+
+### Camera/view space
+
+We use the OpenGL/Blender (and original NeRF) coordinate convention
+for cameras. +X is right, +Y is up, and +Z is pointing back and away
+from the camera. -Z is the look-at direction. Other codebases may use
+the COLMAP/OpenCV convention, where the Y and Z axes are flipped from
+ours but the +X axis remains the same.
+
+### World space
+
+Our world space is oriented such that the up vector is +Z. The XY
+plane is parallel to the ground plane. In the viewer, you’ll notice
+that red, green, and blue vectors correspond to X, Y, and Z
+respectively.
+
+## ROS / odometry
+
+### Axis Orientation
+
+In relation to a body the standard is:
+  -  x forward
+  -  y left
+  -  z up
+
+For short-range Cartesian representations of geographic locations, use the east north up [5] (ENU) convention:
+  -  X east
+  -  Y north
+  -  Z up
+
+### Rotation Representation
+
+Euler angles yaw, pitch, and roll about Z, Y, X axes respectively
 
 
 ## Integrate with your tools
