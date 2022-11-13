@@ -38,7 +38,7 @@ sudo sh -c 'echo "yaml https://raw.githubusercontent.com/basler/pylon-ros-camera
 
 We use Basler Dart camera and Xsense MTi680 AHRS module.
 
-![NERF camera](docs/ahrs_cam.png "NERF camera")
+![NERF camera](docs/ahrs_cam_quoter.png "NERF camera")
 
 ## Calibrate camera intrinsics
 
