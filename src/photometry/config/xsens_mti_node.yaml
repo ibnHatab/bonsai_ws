@@ -28,7 +28,7 @@ pub_temperature: true
 pub_pressure: true
 pub_gnss: true
 pub_twist: true
-pub_transform: true
+pub_transform: false
 pub_positionLLA: true
 pub_velocity: true
 

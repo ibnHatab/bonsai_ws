@@ -4,7 +4,7 @@ import rospy
 import subprocess
 import signal
 
-from rviz_write_button.msg import WriteMsg
+from geometry_msgs.msg import PointStamped
 
 
 class Recorder:
@@ -20,7 +20,7 @@ class Recorder:
             self.storage = rospy.get_param('~storage')
             print('OK >>', self.storage)
 
-            rospy.Subscriber('/write_output/', WriteMsg, self.record_cb, queue_size = 1)
+            rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
 
             # Wait for shutdown signal to close rosbag record
             rospy.spin()
