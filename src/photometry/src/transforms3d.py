@@ -86,7 +86,8 @@ def _quaternion_matrix(quaternion):
 
 def _euler_from_quaternion(quaternion, axes='sxyz'):
     """temporaray import from https://github.com/matthew-brett/transforms3d/blob/master/transforms3d/_gohlketransforms.py for internal use only"""
-    return _euler_from_matrix(_quaternion_matrix(quaternion), axes)
+    t = _quaternion_matrix(quaternion)
+    return _euler_from_matrix(t, axes), t
 
 def _euler_from_quaternion_msg(quaternion):
     # the above code is from transform3 which changed convention from old transformations.py

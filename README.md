@@ -61,6 +61,7 @@ Use Kalibr to adjust TF from IMU to CAM
 rosbag record /imu/data /pylon_camera_node/image_raw
 rosrun kalibr kalibr_calibrate_imu_camera --bag /data/2022-11-09-20-05-36.bag --cam /data/cam_basler_camchain.yaml --imu /data/imu_xsense.yaml --target /data/april_6x6_80x80cm.yaml
 ```
+
 ## KOS
 Here we explain the coordinate conventions for using our repo.
 
@@ -79,9 +80,9 @@ plane is parallel to the ground plane. In the viewer, you’ll notice
 that red, green, and blue vectors correspond to X, Y, and Z
 respectively.
 
-## ROS / odometry
+### ROS / odometry
 
-### Axis Orientation
+#### Axis Orientation
 
 In relation to a body the standard is:
   -  x forward
@@ -93,7 +94,7 @@ For short-range Cartesian representations of geographic locations, use the east 
   -  Y north
   -  Z up
 
-### Rotation Representation
+#### Rotation Representation
 
 Euler angles yaw, pitch, and roll about Z, Y, X axes respectively
 
