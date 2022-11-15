@@ -2,6 +2,43 @@
   <arg name="model" default="$(find xsens_mti_driver)/urdf/MTi_6xx.urdf"/>
   <arg name="rvizconfig" default="$(find photometry)/visualization.rviz" />
 
+  <!-- For setting debug level to debug -->
+  <env name="ROSCONSOLE_CONFIG_FILE"
+       value="$(find photometry)/config/custom_rosconsole.conf"/>
+
+
+  <!-- <include file="$(find photometry)/launch/xsens_mti_node.launch" /> -->
+  <!-- <include file="$(find photometry)/launch/pylon_camera_node.launch" /> -->
+  <include file="$(find photometry)/launch/geonav_transform.launch" />
+
+  <!-- Wire static transform from the world to camera frame -->
+  <node
+      pkg="tf2_ros"
+      type="static_transform_publisher"
+      name="base_imu_tf"
+      output="screen"
+      args="0 0 0 0 0 0 1 base_link imu_link" />
+
+  <node
+      pkg="tf2_ros"
+      type="static_transform_publisher"
+      name="imu_cam_tf"
+      output="screen"
+      args="0.05 0 -0.07 0 0 0 1 imu_link cam_link" />
+
+  <node name="position_transform_node" pkg="position_transform" type="position_transform_node" output="screen">
+  </node>
+
+  <!-- <node name="recorder_node" pkg="photometry" type="recorder.py" output="screen"> -->
+  <!-- 	<param name="enabled" type="bool" value="true"/> -->
+  <!-- 	<param name="storage" type="string" value="/mnt/storage"/> -->
+  <!-- </node> -->
+
+  <node name="pose_collector_node" pkg="photometry" type="pose_collector.py" output="screen">
+	<param name="storage" type="string" value="/mnt/storage"/>
+  </node>
+
   <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+
 </launch>

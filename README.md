@@ -1,6 +1,7 @@
 # bonsai_ws
 
 
+![car](docs/output.webm "car")
 
 ## Getting started
 

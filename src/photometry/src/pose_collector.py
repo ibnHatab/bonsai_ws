@@ -33,8 +33,8 @@ class PoseCollector:
 
     def __init__(self):
 
-        self.source_frame = "odom"
-        self.target_frame = "cam_link"
+        self.target_frame = "odom"
+        self.source_frame = "cam_link"
         self.lookup_offset = -0.100  # 100 ms
 
         self.camera_info = OrderedDict({
