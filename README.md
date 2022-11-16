@@ -1,7 +1,7 @@
 # bonsai_ws
 
 
-![car](docs/car.gof "car")
+![car](docs/car.gif "car")
 
 ## Getting started
 
