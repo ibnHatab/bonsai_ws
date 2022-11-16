@@ -1,7 +1,7 @@
 # bonsai_ws
 
 
-![car](docs/output.webm "car")
+![car](docs/car.gof "car")
 
 ## Getting started
 

@@ -33,8 +33,8 @@ class PoseCollector:
 
     def __init__(self):
 
-        self.target_frame = "odom"
-        self.source_frame = "cam_link"
+        self.source_frame = "odom"
+        self.target_frame = "cam_frame"
         self.lookup_offset = -0.100  # 100 ms
 
         self.camera_info = OrderedDict({
@@ -137,8 +137,6 @@ class PoseCollector:
 
         euler, transform_matrix = _euler_from_quaternion_msg(quat)
 
-        # import pdb
-        # pdb.set_trace()
         transform_matrix[:3, 3] = [xyz.x, xyz.y, xyz.z]
 
         return xyz, euler, transform_matrix
@@ -156,7 +154,7 @@ class PoseCollector:
                 break
 
     def _save_transform(self):
-        file_name = os.path.join(self.folder_path, 'transforms_ros.json')
+        file_name = os.path.join(self.folder_path, 'transforms.json')
         transform = OrderedDict(self.camera_info)
         transform['frames'] = self.frames
 
