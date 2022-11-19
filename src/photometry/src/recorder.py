@@ -1,5 +1,5 @@
 #! /usr/bin/python3
-
+import os
 import rospy
 import subprocess
 import signal
@@ -9,7 +9,7 @@ from geometry_msgs.msg import PointStamped
 
 class Recorder:
 
-    def __init__(self):
+    def __init__(self, subscribe=True):
         self.p = None
         self.on_switch = False
         self.storage = None
@@ -18,16 +18,12 @@ class Recorder:
 
         if rospy.has_param('~storage'):
             self.storage = rospy.get_param('~storage')
-            print('OK >>', self.storage)
+            print('Recorder ready >>', self.storage)
 
+        if subscribe:
             rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
 
-            # Wait for shutdown signal to close rosbag record
-            rospy.spin()
-        else:
-            rospy.signal_shutdown(rospy.get_name() + ' no record ~storage folder.')
-
-    def _switch_off(self):
+    def switch_off(self):
         print('>> switch_off')
         self.on_switch = False
 
@@ -36,7 +32,7 @@ class Recorder:
             self.p = None
             rospy.sleep(3)
 
-    def _switch_on(self):
+    def switch_on(self):
         print('>> switch_on')
         self.on_switch = True
 
@@ -99,8 +95,10 @@ class Recorder:
             '/tf_static',
             '/write_output',
         ]
+        bag_path = self.storage
+
         command = '/opt/ros/noetic/bin/rosbag record  -o %s/nerf %s' % \
-            (self.storage, ' '.join(camera_topic))
+            (bag_path, ' '.join(camera_topic))
 
         self.p = subprocess.Popen(command,
                                   stdin=subprocess.PIPE,
@@ -114,9 +112,9 @@ class Recorder:
         recording.
         """
         if not self.on_switch:
-            self._switch_on()
+            self.switch_on()
         else:
-            self._switch_off()
+            self.switch_off()
 
 
 if __name__ == "__main__":
@@ -125,5 +123,7 @@ if __name__ == "__main__":
 
     try:
         rosbag_record = Recorder()
+        # Wait for shutdown signal to close rosbag record
+        rospy.spin()
     except rospy.ROSInterruptException:
         pass

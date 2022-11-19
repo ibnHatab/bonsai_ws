@@ -5,6 +5,7 @@ import json
 from  collections import OrderedDict
 
 import rospy
+import tf
 import tf2_py as tf2
 import tf2_ros
 
@@ -12,14 +13,16 @@ from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 from rviz_write_button.msg import WriteMsg
 from jsk_rviz_plugins.msg import OverlayText
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped, TransformStamped
+from map_msgs.srv import SetMapProjections, SetMapProjectionsRequest
 
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import math
-import numpy as np
+# import numpy as np
 from transforms3d import _euler_from_quaternion_msg
 
+from recorder import Recorder
 
 # Instantiate CvBridge
 bridge = CvBridge()
@@ -35,7 +38,12 @@ class PoseCollector:
 
         self.source_frame = "odom"
         self.target_frame = "cam_frame"
+        self.ahrs_frame = "ahrs_link"
+        self.base_frame = "cam_link"
+
         self.lookup_offset = -0.100  # 100 ms
+
+        self.recorder = Recorder(subscribe=False)
 
         self.camera_info = OrderedDict({
             "fl_x": 1019.37,
@@ -54,7 +62,7 @@ class PoseCollector:
         self.frames = []
 
         self.storage = None
-        self.img_idx = 1
+        self.img_idx = 0
         self.folder_idx = 1
         self.folder_path = None
         self.take_image = False
@@ -80,9 +88,33 @@ class PoseCollector:
         # camera_info_topic = "/pylon_camera_node/camera_info"
         # rospy.Subscriber(camera_info_topic, Image, self.camera_info_callback)
 
+        # self.cam_link_xyz = (0.05, 0, -0.07)
+        # self.broadcaster = tf2_ros.StaticTransformBroadcaster()
+        # static_transformStamped = self._get_transform(self.cam_link_xyz, 0., 0., 0.)
+        # self.broadcaster.sendTransform(static_transformStamped)
+
         rospy.on_shutdown(self._save_transform)
 
         rospy.spin()
+
+    # def _get_transform(self, xyz, yaw, pitch, roll):
+    #     static_transformStamped = TransformStamped()
+
+    #     static_transformStamped.header.stamp = rospy.Time.now()
+    #     static_transformStamped.header.frame_id = self.ahrs_frame
+    #     static_transformStamped.child_frame_id = self.base_frame
+
+    #     static_transformStamped.transform.translation.x = xyz[0]
+    #     static_transformStamped.transform.translation.y = xyz[1]
+    #     static_transformStamped.transform.translation.z = xyz[2]
+
+    #     quat = tf.transformations.quaternion_from_euler(yaw, pitch, roll)
+    #     static_transformStamped.transform.rotation.x = quat[0]
+    #     static_transformStamped.transform.rotation.y = quat[1]
+    #     static_transformStamped.transform.rotation.z = quat[2]
+    #     static_transformStamped.transform.rotation.w = quat[3]
+    #     return static_transformStamped
+
 
     def _hud_info(self, msg):
         text = OverlayText()
@@ -125,11 +157,12 @@ class PoseCollector:
         except tf2.LookupException as ex:
             msg = "At time {}, (current time {}) ".format(lookup_time.to_sec(),
                                                           cur_time.to_sec())
-            rospy.logerr(msg + str(ex))
+            rospy.logerr_once(msg + str(ex))
             return None, None, None
+
         except tf2.ExtrapolationException as ex:
             msg = "(current time {}) ".format(cur_time.to_sec())
-            rospy.logerr(msg + str(ex))
+            rospy.logerr_once(msg + str(ex))
             return None, None, None
 
         xyz = ts.transform.translation
@@ -162,6 +195,20 @@ class PoseCollector:
             json.dump(transform, outfile, indent=4, separators=(", ", ": "), sort_keys=False)
 
     def shutter_cb(self, msg):
+
+        if self.img_idx == 0:
+            rospy.wait_for_service('geonav_sat_fix')
+            try:
+                geonav_sat_fix = rospy.ServiceProxy('geonav_sat_fix', SetMapProjections)
+                _ = geonav_sat_fix(SetMapProjectionsRequest())
+            except rospy.ServiceException as e:
+                rospy.logerr ("Service call failed: %s"%e)
+                return
+
+            self.recorder.switch_on()
+
+            return
+
         self.take_image = True
 
     def record_cb(self, msg):

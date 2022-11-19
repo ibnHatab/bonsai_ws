@@ -17,21 +17,21 @@
       type="static_transform_publisher"
       name="base_imu_tf"
       output="screen"
-      args="0 0 0 0 0 0 1 base_link imu_link" />
+      args="0 0 0 0 0 0 1 base_link ahrs_link" />
 
   <node
       pkg="tf2_ros"
       type="static_transform_publisher"
       name="imu_cam_tf"
       output="screen"
-      args="0.05 0 -0.07 0 0 0 1 imu_link cam_link" />
+      args="0.05 0 -0.07 0 0 0 ahrs_link cam_link" />
 
   <node
       pkg="tf2_ros"
       type="static_transform_publisher"
       name="cam_kos_tf"
       output="screen"
-      args="0 0 0 1.57 0 -1.57 cam_link cam_frame" />
+      args="0 0 0 -1.57 0 1.57  cam_link cam_frame" />
 
 
   <node name="position_transform_node" pkg="position_transform" type="position_transform_node" output="screen">
