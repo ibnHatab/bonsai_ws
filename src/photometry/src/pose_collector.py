@@ -5,7 +5,7 @@ import json
 from  collections import OrderedDict
 
 import rospy
-import tf
+# import tf
 import tf2_py as tf2
 import tf2_ros
 
@@ -13,7 +13,7 @@ from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 from rviz_write_button.msg import WriteMsg
 from jsk_rviz_plugins.msg import OverlayText
-from geometry_msgs.msg import PointStamped, TransformStamped
+# from geometry_msgs.msg import PointStamped, TransformStamped
 from map_msgs.srv import SetMapProjections, SetMapProjectionsRequest
 
 from cv_bridge import CvBridge, CvBridgeError
@@ -38,8 +38,8 @@ class PoseCollector:
 
         self.source_frame = "odom"
         self.target_frame = "cam_frame"
-        self.ahrs_frame = "ahrs_link"
-        self.base_frame = "cam_link"
+        # self.ahrs_frame = "ahrs_link"
+        # self.base_frame = "cam_link"
 
         self.lookup_offset = -0.100  # 100 ms
 
@@ -80,7 +80,7 @@ class PoseCollector:
         self._make_scene_folder()
 
         rospy.Subscriber('/write_output', WriteMsg, self.shutter_cb, queue_size=1)
-        rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
+        # rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
 
         image_topic = "/pylon_camera_node/image_rect"
         rospy.Subscriber(image_topic, Image, self.image_callback)
@@ -206,17 +206,17 @@ class PoseCollector:
                 return
 
             self.recorder.switch_on()
-
+            self.img_idx += 1
             return
 
         self.take_image = True
 
-    def record_cb(self, msg):
-        print('>> record_cb ', self.folder_idx)
-        self._save_transform()
-        self.folder_idx += 1
-        self.frames = []
-        self._make_scene_folder()
+    # def record_cb(self, msg):
+    #     print('>> record_cb ', self.folder_idx)
+    #     self._save_transform()
+    #     self.folder_idx += 1
+    #     self.frames = []
+    #     self._make_scene_folder()
 
     def camera_info_callback(self, msg):
 
@@ -248,8 +248,9 @@ class PoseCollector:
         if not (xyz and euler):
             return
 
+        self._display_hud(xyz, euler)
+
         if not self.take_image:
-            self._display_hud(xyz, euler)
             return
 
         try:

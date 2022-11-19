@@ -14,7 +14,7 @@ class Recorder:
         self.on_switch = False
         self.storage = None
 
-        rospy.on_shutdown(self._switch_off)
+        rospy.on_shutdown(self.switch_off)
 
         if rospy.has_param('~storage'):
             self.storage = rospy.get_param('~storage')
