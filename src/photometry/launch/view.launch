@@ -6,12 +6,14 @@
   <env name="ROSCONSOLE_CONFIG_FILE"
        value="$(find photometry)/config/custom_rosconsole.conf"/>
 
+  <include file="$(find photometry)/launch/xsens_mti_node.launch" />
+  <include file="$(find photometry)/launch/pylon_camera_node.launch" />
 
   <!-- <include file="$(find photometry)/launch/xsens_mti_node.launch" /> -->
   <!-- <include file="$(find photometry)/launch/pylon_camera_node.launch" /> -->
   <include file="$(find photometry)/launch/geonav_transform.launch" />
 
-  <!-- Wire static transform from the world to camera frame -->
+
   <node
       pkg="tf2_ros"
       type="static_transform_publisher"
@@ -26,12 +28,22 @@
       output="screen"
       args="0.05 0 -0.07 0 0 0 ahrs_link cam_link" />
 
+
+  <!-- Wire static transform from the camera world to camera frame -->
+  <!-- rosrun tf static_transform_publisher 1 1 1 -1.57 0 -1.57  odom cam_world 100 -->
+  <node
+      pkg="tf2_ros"
+      type="static_transform_publisher"
+      name="cam_world_tf"
+      output="screen"
+      args="0 0 0 -1.57 0 -1.57 odom cam_world" />
+
   <node
       pkg="tf2_ros"
       type="static_transform_publisher"
       name="cam_kos_tf"
       output="screen"
-      args="0 0 0 -1.57 0 1.57  cam_link cam_frame" />
+      args="0 0 0 -1.57 0 -1.57  cam_link cam_frame" />
 
 
   <node name="position_transform_node" pkg="position_transform" type="position_transform_node" output="screen">

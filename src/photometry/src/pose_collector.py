@@ -13,7 +13,7 @@ from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 from rviz_write_button.msg import WriteMsg
 from jsk_rviz_plugins.msg import OverlayText
-# from geometry_msgs.msg import PointStamped, TransformStamped
+from geometry_msgs.msg import PointStamped
 from map_msgs.srv import SetMapProjections, SetMapProjectionsRequest
 
 from cv_bridge import CvBridge, CvBridgeError
@@ -36,13 +36,10 @@ class PoseCollector:
 
     def __init__(self):
 
-        self.source_frame = "odom"
+        self.source_frame = "cam_world"
         self.target_frame = "cam_frame"
-        # self.ahrs_frame = "ahrs_link"
-        # self.base_frame = "cam_link"
 
         self.lookup_offset = -0.100  # 100 ms
-
         self.recorder = Recorder(subscribe=False)
 
         self.camera_info = OrderedDict({
@@ -80,18 +77,13 @@ class PoseCollector:
         self._make_scene_folder()
 
         rospy.Subscriber('/write_output', WriteMsg, self.shutter_cb, queue_size=1)
-        # rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
+        rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
 
         image_topic = "/pylon_camera_node/image_rect"
         rospy.Subscriber(image_topic, Image, self.image_callback)
 
         # camera_info_topic = "/pylon_camera_node/camera_info"
         # rospy.Subscriber(camera_info_topic, Image, self.camera_info_callback)
-
-        # self.cam_link_xyz = (0.05, 0, -0.07)
-        # self.broadcaster = tf2_ros.StaticTransformBroadcaster()
-        # static_transformStamped = self._get_transform(self.cam_link_xyz, 0., 0., 0.)
-        # self.broadcaster.sendTransform(static_transformStamped)
 
         rospy.on_shutdown(self._save_transform)
 
@@ -211,12 +203,12 @@ class PoseCollector:
 
         self.take_image = True
 
-    # def record_cb(self, msg):
-    #     print('>> record_cb ', self.folder_idx)
-    #     self._save_transform()
-    #     self.folder_idx += 1
-    #     self.frames = []
-    #     self._make_scene_folder()
+    def record_cb(self, msg):
+        print('>> record_cb ', self.folder_idx)
+        self._save_transform()
+        self.folder_idx += 1
+        self.frames = []
+        self._make_scene_folder()
 
     def camera_info_callback(self, msg):
 
