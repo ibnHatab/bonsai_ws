@@ -2,10 +2,8 @@
 
 import os
 import json
-from  collections import OrderedDict
 
 import rospy
-# import tf
 import tf2_py as tf2
 import tf2_ros
 
@@ -19,9 +17,10 @@ from map_msgs.srv import SetMapProjections, SetMapProjectionsRequest
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import math
-# import numpy as np
-from transforms3d import _euler_from_quaternion_msg
+import numpy as np
+from collections import OrderedDict
 
+from transforms3d import _euler_from_quaternion_msg
 from recorder import Recorder
 
 # Instantiate CvBridge
@@ -31,8 +30,20 @@ text_pub = rospy.Publisher("text_rviz_hud", OverlayText, queue_size=1)
 
 
 class PoseCollector:
-
     args_cache_time = 1.0  # seconds
+    camera_info = OrderedDict({
+        "fl_x": 1019.37,
+        "fl_y": 1016.04,
+        "k1": 0.,
+        "k2": 0.,
+        "p1": 0.,
+        "p2": 0.,
+        "cx": 632.40,
+        "cy": 490.07,
+        "w": 1280,
+        "h": 960,
+        "aabb_scale": 16,
+    })
 
     def __init__(self):
 
@@ -40,24 +51,10 @@ class PoseCollector:
         self.target_frame = "cam_frame"
 
         self.lookup_offset = -0.100  # 100 ms
+        self.rosbag_enabled = False
         self.recorder = Recorder(subscribe=False)
 
-        self.camera_info = OrderedDict({
-            "fl_x": 1019.37,
-            "fl_y": 1016.04,
-            "k1": 0.,
-            "k2": 0.,
-            "p1": 0.,
-            "p2": 0.,
-            "cx": 632.40,
-            "cy": 490.07,
-            "w": 1280,
-            "h": 960,
-            "aabb_scale": 16,
-        })
-
         self.frames = []
-
         self.storage = None
         self.img_idx = 0
         self.folder_idx = 1
@@ -68,12 +65,16 @@ class PoseCollector:
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
         try:
+            self.rosbag_enabled = rospy.get_param('~rosbag_enabled')
+        except KeyError:
+            pass
+
+        try:
             self.storage = rospy.get_param('~storage')
             rospy.loginfo("Storage value: %s", self.storage)
         except KeyError:
             rospy.logerr("Storage value missing")
             raise
-
         self._make_scene_folder()
 
         rospy.Subscriber('/write_output', WriteMsg, self.shutter_cb, queue_size=1)
@@ -88,25 +89,6 @@ class PoseCollector:
         rospy.on_shutdown(self._save_transform)
 
         rospy.spin()
-
-    # def _get_transform(self, xyz, yaw, pitch, roll):
-    #     static_transformStamped = TransformStamped()
-
-    #     static_transformStamped.header.stamp = rospy.Time.now()
-    #     static_transformStamped.header.frame_id = self.ahrs_frame
-    #     static_transformStamped.child_frame_id = self.base_frame
-
-    #     static_transformStamped.transform.translation.x = xyz[0]
-    #     static_transformStamped.transform.translation.y = xyz[1]
-    #     static_transformStamped.transform.translation.z = xyz[2]
-
-    #     quat = tf.transformations.quaternion_from_euler(yaw, pitch, roll)
-    #     static_transformStamped.transform.rotation.x = quat[0]
-    #     static_transformStamped.transform.rotation.y = quat[1]
-    #     static_transformStamped.transform.rotation.z = quat[2]
-    #     static_transformStamped.transform.rotation.w = quat[3]
-    #     return static_transformStamped
-
 
     def _hud_info(self, msg):
         text = OverlayText()
@@ -180,7 +162,7 @@ class PoseCollector:
 
     def _save_transform(self):
         file_name = os.path.join(self.folder_path, 'transforms.json')
-        transform = OrderedDict(self.camera_info)
+        transform = OrderedDict(PoseCollector.camera_info)
         transform['frames'] = self.frames
 
         with open(file_name, 'w') as outfile:
@@ -245,6 +227,18 @@ class PoseCollector:
         if not self.take_image:
             return
 
+        rotation = transform_matrix[:3, :3]  # qvec2rotmat(im_data.qvec)
+        translation = transform_matrix[:3, 3]  # im_data.tvec.reshape(3, 1)
+        translation = translation.reshape(3, 1)
+
+        w2c = np.concatenate([rotation, translation], 1)
+        w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
+        c2w = np.linalg.inv(w2c)
+        # Convert from COLMAP's camera coordinate system to ours
+        c2w[0:3, 1:3] *= -1
+        c2w = c2w[np.array([1, 0, 2, 3]), :]
+        c2w[2, :] *= -1
+
         try:
             # Convert your ROS Image message to OpenCV2
             cv2_img = bridge.imgmsg_to_cv2(msg, "bgr8")
@@ -260,15 +254,15 @@ class PoseCollector:
 
             self.frames.append({
                 "file_path": image_base_path,
-                "transform_matrix": transform_matrix.tolist()
+                "transform_matrix": c2w.tolist()
             })
 
         self.take_image = False
 
 if __name__ == "__main__":
+
     rospy.init_node('pose_collector_node')
     rospy.loginfo(rospy.get_name() + ' start')
-
     try:
         rosbag_record = PoseCollector()
     except rospy.ROSInterruptException:

@@ -62,6 +62,13 @@ Use Kalibr to adjust TF from IMU to CAM
 rosbag record /imu/data /pylon_camera_node/image_raw
 rosrun kalibr kalibr_calibrate_imu_camera --bag /data/2022-11-09-20-05-36.bag --cam /data/cam_basler_camchain.yaml --imu /data/imu_xsense.yaml --target /data/april_6x6_80x80cm.yaml
 ```
+## Using an NTRIP client with the Xsens ROS driver
+Create a GGA string for your location using this ![website](https://www.nmeagen.org/ NMEA GGA)
+
+```
+$GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60
+```
+
 
 ## KOS
 Here we explain the coordinate conventions for using our repo.

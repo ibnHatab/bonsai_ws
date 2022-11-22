@@ -6,9 +6,6 @@
   <env name="ROSCONSOLE_CONFIG_FILE"
        value="$(find photometry)/config/custom_rosconsole.conf"/>
 
-  <include file="$(find photometry)/launch/xsens_mti_node.launch" />
-  <include file="$(find photometry)/launch/pylon_camera_node.launch" />
-
   <!-- <include file="$(find photometry)/launch/xsens_mti_node.launch" /> -->
   <!-- <include file="$(find photometry)/launch/pylon_camera_node.launch" /> -->
   <include file="$(find photometry)/launch/geonav_transform.launch" />
@@ -49,12 +46,8 @@
   <node name="position_transform_node" pkg="position_transform" type="position_transform_node" output="screen">
   </node>
 
-  <!-- <node name="recorder_node" pkg="photometry" type="recorder.py" output="screen"> -->
-  <!-- 	<param name="enabled" type="bool" value="true"/> -->
-  <!-- 	<param name="storage" type="string" value="/mnt/storage"/> -->
-  <!-- </node> -->
-
   <node name="pose_collector_node" pkg="photometry" type="pose_collector.py" output="screen">
+  	<param name="rosbag_enabled" type="bool" value="false"/>
 	<param name="storage" type="string" value="/mnt/storage"/>
   </node>
 

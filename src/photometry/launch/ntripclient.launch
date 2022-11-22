@@ -1,0 +1,23 @@
+<launch>
+  <arg name="ntrip_client" default="$(find ntrip_ros)/scripts/ntripclient"/>
+
+  <node pkg="ntrip_ros" type="ntripclient.py" name="ntrip_client" output="screen">
+    <param name="ntrip_client" value="$(arg ntrip_client)" />
+    <param name="ntrip_server" value="rtk2go.com" />
+    <param name="ntrip_port" value="2101" />
+    <param name="ntrip_user" value="lib.aca55a@gmail.com" />
+    <param name="ntrip_pass" value="password" />
+    <param name="ntrip_stream" value="A_CMS_01" />
+    <param name="nmea_gga" value="$GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60" />
+    <param name="rtcm_topic" value="/rtcm" />
+  </node>
+</launch>
+
+<!--
+A_CMS_01;Exeter;
+ACACU;Curug;
+ACAKO;;
+ACAMP-ROOF;Leduc;
+ACASU;Subotica;
+Adkonis;Kwakowo;
+-->

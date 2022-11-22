@@ -12,3 +12,6 @@
 [submodule "src/geonav_transform"]
 	path = src/geonav_transform
 	url = git@github.com:ibnHatab/geonav_transform.git
+[submodule "src/ntrip_ros"]
+	path = src/ntrip_ros
+	url = git@github.com:ibnHatab/ntrip_ros.git
