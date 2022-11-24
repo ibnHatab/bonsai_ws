@@ -68,7 +68,7 @@ Create a GGA string for your location using this ![website](https://www.nmeagen.
 ```
 $GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60
 ```
-
+Replace MT SDK with custom one from ![here](https://base.xsens.com/s/article/Using-an-NTRIP-client-with-the-Xsens-ROS-driver?language=en_US NTSDK)
 
 ## KOS
 Here we explain the coordinate conventions for using our repo.

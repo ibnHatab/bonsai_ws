@@ -190,6 +190,7 @@ class PoseCollector:
         self._save_transform()
         self.folder_idx += 1
         self.frames = []
+        self.img_idx = 0
         self._make_scene_folder()
 
     def camera_info_callback(self, msg):
