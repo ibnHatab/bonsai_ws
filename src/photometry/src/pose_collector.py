@@ -23,6 +23,27 @@ from collections import OrderedDict
 from transforms3d import _euler_from_quaternion_msg
 from recorder import Recorder
 
+#### DEBUG
+from geometry_msgs.msg import Pose, Point, Quaternion
+import rviz_tools
+import tf
+
+markers = rviz_tools.RvizMarkers('nerf_world', 'visualization_marker')
+
+def rotmat2qvec(R):
+    Rxx, Ryx, Rzx, Rxy, Ryy, Rzy, Rxz, Ryz, Rzz = R.flat
+    K = np.array([
+        [Rxx - Ryy - Rzz, 0, 0, 0],
+        [Ryx + Rxy, Ryy - Rxx - Rzz, 0, 0],
+        [Rzx + Rxz, Rzy + Ryz, Rzz - Rxx - Ryy, 0],
+        [Ryz - Rzy, Rzx - Rxz, Rxy - Ryx, Rxx + Ryy + Rzz]]) / 3.0
+    eigvals, eigvecs = np.linalg.eigh(K)
+    qvec = eigvecs[[3, 0, 1, 2], np.argmax(eigvals)]
+    if qvec[0] < 0:
+        qvec *= -1
+    return qvec
+####
+
 # Instantiate CvBridge
 bridge = CvBridge()
 
@@ -30,7 +51,7 @@ text_pub = rospy.Publisher("text_rviz_hud", OverlayText, queue_size=1)
 
 
 class PoseCollector:
-    args_cache_time = 1.0  # seconds
+    args_cache_time = 0.3  # seconds
     camera_info = OrderedDict({
         "fl_x": 1019.37,
         "fl_y": 1016.04,
@@ -47,10 +68,10 @@ class PoseCollector:
 
     def __init__(self):
 
-        self.source_frame = "cam_world"
-        self.target_frame = "cam_frame"
+        self.source_frame = "nerf_world"
+        self.target_frame = "nerf_cam"
 
-        self.lookup_offset = -0.100  # 100 ms
+        self.lookup_offset = -0.01  # 100 ms
         self.rosbag_enabled = False
         self.recorder = Recorder(subscribe=False)
 
@@ -120,14 +141,19 @@ class PoseCollector:
 
         self._hud_info(msg)
 
-    def _get_lookup_transform(self):
+    def _get_lookup_transform(self, inverse=False):
         cur_time = rospy.Time.now()
         lookup_time = cur_time + rospy.Duration(self.lookup_offset)
 
         try:
-            ts = self.tf_buffer.lookup_transform(self.source_frame,
-                                                 self.target_frame,
-                                                 lookup_time)
+            if inverse:
+                ts = self.tf_buffer.lookup_transform(self.target_frame,
+                                                     self.source_frame,
+                                                     lookup_time)
+            else:
+                ts = self.tf_buffer.lookup_transform(self.source_frame,
+                                                     self.target_frame,
+                                                     lookup_time)
         except tf2.LookupException as ex:
             msg = "At time {}, (current time {}) ".format(lookup_time.to_sec(),
                                                           cur_time.to_sec())
@@ -179,7 +205,8 @@ class PoseCollector:
                 rospy.logerr ("Service call failed: %s"%e)
                 return
 
-            self.recorder.switch_on()
+            if self.rosbag_enabled:
+                self.recorder.switch_on()
             self.img_idx += 1
             return
 
@@ -191,6 +218,7 @@ class PoseCollector:
         self.folder_idx += 1
         self.frames = []
         self.img_idx = 0
+        self.recorder.switch_off()
         self._make_scene_folder()
 
     def camera_info_callback(self, msg):
@@ -228,9 +256,29 @@ class PoseCollector:
         if not self.take_image:
             return
 
+        ##### DEBUG odom
+        # cur_time = rospy.Time.now()
+        # lookup_time = cur_time + rospy.Duration(self.lookup_offset)
+        # ts = self.tf_buffer.lookup_transform('cam_world','cam_frame',
+        #                                      lookup_time)
+        # print('cam_world', 'cam_frame\n', transform_matrix)
+        # _, _, inv_transform_matrix = self._get_lookup_transform(True)
+        # print('cam_frame', 'cam_world\n', inv_transform_matrix)
+        # P = Pose(Point(ts.transform.translation.x,
+        #                ts.transform.translation.y,
+        #                ts.transform.translation.z), ts.transform.rotation)
+        # markers.publishAxis(P, 1, 0.1, 0)
+
+
         rotation = transform_matrix[:3, :3]  # qvec2rotmat(im_data.qvec)
         translation = transform_matrix[:3, 3]  # im_data.tvec.reshape(3, 1)
         translation = translation.reshape(3, 1)
+
+        ###  DEBUG cam_world
+        # quat = tf.transformations.quaternion_from_euler(*euler)
+        # P = Pose(Point(*transform_matrix[:3, 3]), Quaternion(*quat))
+        # markers.publishAxis(P, 1, 0.1, 0)
+        #####
 
         w2c = np.concatenate([rotation, translation], 1)
         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
@@ -239,6 +287,22 @@ class PoseCollector:
         c2w[0:3, 1:3] *= -1
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
+
+        w2_c2w = np.linalg.inv(c2w)
+        ###  DEBUG nerf_world w2c
+        _r = w2_c2w[:3, :3]
+        _t = w2_c2w[:3, 3]
+        _q = rotmat2qvec(_r)
+        _q = np.roll(_q, -1)
+        P = Pose(Point(*_t), Quaternion(*_q))
+        markers.publishAxis(P, 1, 0.1, 0)
+        #####
+
+
+        # print('--------------')
+        # print(w2c)
+        # print(c2w)
+
 
         try:
             # Convert your ROS Image message to OpenCV2
@@ -255,7 +319,7 @@ class PoseCollector:
 
             self.frames.append({
                 "file_path": image_base_path,
-                "transform_matrix": c2w.tolist()
+                "transform_matrix": transform_matrix.tolist()
             })
 
         self.take_image = False
