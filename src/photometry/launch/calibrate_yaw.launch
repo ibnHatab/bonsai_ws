@@ -1,0 +1,14 @@
+<launch>
+  <arg name="rvizconfig" default="$(find photometry)/calibrate.rviz" />
+
+  <!-- For setting debug level to debug -->
+  <env name="ROSCONSOLE_CONFIG_FILE"
+       value="$(find photometry)/config/custom_rosconsole.conf"/>
+
+  <include file="$(find photometry)/launch/xsens_mti_node.launch" />
+  <include file="$(find photometry)/launch/pylon_camera_node.launch" />
+
+  <node name="draw_frame_node" pkg="photometry" type="draw_frame.py" output="screen">
+  </node>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+</launch>

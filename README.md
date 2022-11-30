@@ -35,6 +35,7 @@ sudo sh -c 'echo "yaml https://raw.githubusercontent.com/basler/pylon-ros-camera
   source devel/setup.bash
 ```
 
+
 ## Prepare hardware
 
 We use Basler Dart camera and Xsense MTi680 AHRS module.
@@ -60,8 +61,11 @@ Configuring the Xsens MTi node.
 Use Kalibr to adjust TF from IMU to CAM
 ```
 rosbag record /imu/data /pylon_camera_node/image_raw
+
 rosrun kalibr kalibr_calibrate_imu_camera --bag /data/2022-11-09-20-05-36.bag --cam /data/cam_basler_camchain.yaml --imu /data/imu_xsense.yaml --target /data/april_6x6_80x80cm.yaml
 ```
+
+
 ## Using an NTRIP client with the Xsens ROS driver
 Create a GGA string for your location using this ![website](https://www.nmeagen.org/ NMEA GGA)
 

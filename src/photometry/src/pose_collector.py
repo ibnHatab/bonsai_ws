@@ -71,7 +71,12 @@ class PoseCollector:
         self.source_frame = "nerf_world"
         self.target_frame = "nerf_cam"
 
-        self.lookup_offset = -0.01  # 100 ms
+        self.lookup_offset = -0.030  # 100 ms /  30hz
+        self.lookup_offset = -0.020  # 100 ms /  30hz
+        self.lookup_offset = -0.010  # 100 ms /  30hz
+        self.lookup_offset = -0.100  # 100 ms
+        self.lookup_offset = -0.130  # watch 30 hz overlap OK (yaw -2')
+        # self.lookup_offset = 2.0522692674502518e-05  # rolling shutter
         self.rosbag_enabled = False
         self.recorder = Recorder(subscribe=False)
 
@@ -141,19 +146,19 @@ class PoseCollector:
 
         self._hud_info(msg)
 
-    def _get_lookup_transform(self, inverse=False):
+    def _get_lookup_transform(self, stamp=0):
+
         cur_time = rospy.Time.now()
-        lookup_time = cur_time + rospy.Duration(self.lookup_offset)
+        if stamp:
+            lookup_time = stamp
+        else:
+            lookup_time = cur_time + rospy.Duration(self.lookup_offset)
 
         try:
-            if inverse:
-                ts = self.tf_buffer.lookup_transform(self.target_frame,
-                                                     self.source_frame,
-                                                     lookup_time)
-            else:
-                ts = self.tf_buffer.lookup_transform(self.source_frame,
-                                                     self.target_frame,
-                                                     lookup_time)
+
+            ts = self.tf_buffer.lookup_transform(self.source_frame,
+                                                 self.target_frame,
+                                                 lookup_time)
         except tf2.LookupException as ex:
             msg = "At time {}, (current time {}) ".format(lookup_time.to_sec(),
                                                           cur_time.to_sec())
@@ -247,6 +252,7 @@ class PoseCollector:
 
     def image_callback(self, msg):
         xyz, euler, transform_matrix = self._get_lookup_transform()
+        # xyz, euler, transform_matrix = self._get_lookup_transform(msg.header.stamp)
 
         if not (xyz and euler):
             return
@@ -275,9 +281,9 @@ class PoseCollector:
         translation = translation.reshape(3, 1)
 
         ###  DEBUG cam_world
-        # quat = tf.transformations.quaternion_from_euler(*euler)
-        # P = Pose(Point(*transform_matrix[:3, 3]), Quaternion(*quat))
-        # markers.publishAxis(P, 1, 0.1, 0)
+        quat = tf.transformations.quaternion_from_euler(*euler)
+        P = Pose(Point(*transform_matrix[:3, 3]), Quaternion(*quat))
+        markers.publishAxis(P, 1, 0.1, 0)
         #####
 
         w2c = np.concatenate([rotation, translation], 1)
@@ -294,8 +300,8 @@ class PoseCollector:
         _t = w2_c2w[:3, 3]
         _q = rotmat2qvec(_r)
         _q = np.roll(_q, -1)
-        P = Pose(Point(*_t), Quaternion(*_q))
-        markers.publishAxis(P, 1, 0.1, 0)
+        # P = Pose(Point(*_t), Quaternion(*_q))
+        # markers.publishAxis(P, 1, 0.1, 0)
         #####
 
 

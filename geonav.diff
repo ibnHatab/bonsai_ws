@@ -1,0 +1,416 @@
+diff --git a/include/geonav_transform/geonav_transform.h b/include/geonav_transform/geonav_transform.h
+index 65ab79a..20fcb70 100644
+--- a/include/geonav_transform/geonav_transform.h
++++ b/include/geonav_transform/geonav_transform.h
+@@ -1,4 +1,4 @@
+-/* 
++/*
+ 
+ Copyright (c) 2017, Brian Bingham
+ All rights reserved
+@@ -28,6 +28,7 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ #include <nav_msgs/Odometry.h>
+ #include <sensor_msgs/Imu.h>
+ #include <sensor_msgs/NavSatFix.h>
++#include <map_msgs/SetMapProjections.h>
+ 
+ #include <tf2/LinearMath/Transform.h>
+ #include <tf2_ros/static_transform_broadcaster.h>
+@@ -92,6 +93,11 @@ class GeonavTransform
+     //!
+     void geoOdomCallback(const nav_msgs::OdometryConstPtr& msg);
+ 
++    //! @brief Callback for odom in geo frame
++    //! @param[in] msg The odometry message to process
++    //!
++    bool geoSetMapProjections(map_msgs::SetMapProjections::Request& req, map_msgs::SetMapProjections::Response& res);
++
+     //! @brief Sends transform
+     void broadcastTf(void);
+ 
+@@ -134,7 +140,7 @@ class GeonavTransform
+     tf2::Transform transform_utm2nav_;
+     tf2::Transform transform_utm2nav_inverse_;
+ 
+-  tf2::Transform transform_odom2nav_;
++	tf2::Transform transform_odom2nav_;
+     tf2::Transform transform_odom2nav_inverse_;
+ 
+     //! @brief Transform buffer for managing coordinate transforms
+@@ -191,6 +197,7 @@ class GeonavTransform
+     //! @brief Publisher of Geo Odometry relative to geo frame
+     ros::Publisher geo_pub_;
+ 
++	ros::ServiceServer nav_sat_fix_service_;
+ 
+ };
+ 
+diff --git a/launch/geonav_transform.launch b/launch/geonav_transform.launch
+index 9e2e68c..c736716 100644
+--- a/launch/geonav_transform.launch
++++ b/launch/geonav_transform.launch
+@@ -2,17 +2,17 @@
+ <launch>
+ 
+   <!-- For setting debug level to debug -->
+-  <env name="ROSCONSOLE_CONFIG_FILE" 
++  <env name="ROSCONSOLE_CONFIG_FILE"
+        value="$(find geonav_transform)/config/custom_rosconsole.conf"/>
+ 
+   <node pkg="geonav_transform" type="geonav_transform_node" name="geonav_transform_node" clear_params="true" output="screen">
+-    <!-- Datum as latitude, longitude [decimal deg.], yaw [ENU, degrees] -->
+-    <rosparam param="datum">[36.6137, -121.912, 0.0]</rosparam>
++    <!-- Datum as latitude, longitude [decimal deg.], altitude [ENU, meters] -->
++    <rosparam param="datum">[45.765371, 21.230385, 137]</rosparam>
+   </node>
+ 
+   <!--
+-  <node name="microstrain_3dm_gx5_45" 
+-  pkg="microstrain_3dm_gx5_45" 
++  <node name="microstrain_3dm_gx5_45"
++  pkg="microstrain_3dm_gx5_45"
+   type="microstrain_3dm_gx5_45" output="screen">
+     <param name="port" value="/dev/ttyACM0" type="str" />
+     <param name="baudrate" value="115200" type="int" />
+@@ -29,6 +29,6 @@
+   -->
+ 
+ 
+-  
+ 
+-</launch>
+\ No newline at end of file
++
++</launch>
+diff --git a/src/geonav_transform.cpp b/src/geonav_transform.cpp
+index ddcaca2..db278c2 100644
+--- a/src/geonav_transform.cpp
++++ b/src/geonav_transform.cpp
+@@ -1,4 +1,4 @@
+-/* 
++/*
+ 
+ Copyright (c) 2017, Brian Bingham
+ All rights reserved
+@@ -25,6 +25,7 @@ along with this package.  If not, see <http://www.gnu.org/licenses/>.
+ #include "geonav_transform/geonav_utilities.h"
+ 
+ #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
++#include <tf/tf.h>
+ 
+ #include <XmlRpcException.h>
+ 
+@@ -57,13 +58,13 @@ GeonavTransform::~GeonavTransform()
+ 
+ void GeonavTransform::run()
+ {
+-  
++
+   double frequency = 10.0;
+   double delay = 0.0;
+-  
++
+   ros::NodeHandle nh;
+   ros::NodeHandle nh_priv("~");
+-  
++
+   nav_update_time_ = ros::Time::now();
+ 
+   // Load ROS parameters
+@@ -80,7 +81,7 @@ void GeonavTransform::run()
+   // Datum parameter - required
+   double datum_lat;
+   double datum_lon;
+-  double datum_yaw;
++  double datum_alt;
+   tf2::Quaternion quat = tf2::Quaternion::getIdentity();
+ 
+   if ( (! nh_priv.hasParam("datum")) && (! nh.hasParam("/geonav_datum")) )
+@@ -90,7 +91,7 @@ void GeonavTransform::run()
+ 	      "geonav_transform configuration");
+     exit(1);
+   }
+-  else 
++  else
+   {
+     XmlRpc::XmlRpcValue datum_config;
+     if ( nh.hasParam("/geonav_datum") )
+@@ -107,13 +108,13 @@ void GeonavTransform::run()
+       catch (XmlRpc::XmlRpcException &e)
+       {
+ 	ROS_FATAL_STREAM("ERROR geonav_datum config: " << e.getMessage() <<
+-			 " for geonav_transform (type: " 
++			 " for geonav_transform (type: "
+ 			 << datum_config.getType() << ")");
+ 	exit(1);
+       }
+     }
+     else
+-    {	
++    {
+       try
+       {
+ 	nh_priv.getParam("datum", datum_config);
+@@ -121,20 +122,20 @@ void GeonavTransform::run()
+       catch (XmlRpc::XmlRpcException &e)
+       {
+ 	ROS_FATAL_STREAM("ERROR datum config: " << e.getMessage() <<
+-			 " for geonav_transform (type: " 
++			 " for geonav_transform (type: "
+ 			 << datum_config.getType() << ")");
+ 	exit(1);
+       }
+     }
+     try
+     {
+-      /* Handle datum specification. 
++      /* Handle datum specification.
+ 	 Users should always specify a baseLinkFrameId_ in the
+-	 datum config, but we had a release where it wasn't used, 
++	 datum config, but we had a release where it wasn't used,
+ 	 so we'll maintain compatibility.*/
+       ROS_ASSERT(datum_config.getType() == XmlRpc::XmlRpcValue::TypeArray);
+       ROS_ASSERT(datum_config.size() >= 3);
+-      
++
+       if (datum_config.size() > 3)
+       {
+ 	ROS_WARN_STREAM("Deprecated datum parameter configuration detected. "
+@@ -146,22 +147,17 @@ void GeonavTransform::run()
+       std::ostringstream ostr;
+       ostr << datum_config[0] << " " << datum_config[1] << " " << datum_config[2];
+       std::istringstream istr(ostr.str());
+-      istr >> datum_lat >> datum_lon >> datum_yaw;
++      istr >> datum_lat >> datum_lon >> datum_alt;
+     }
+     catch (XmlRpc::XmlRpcException &e)
+     {
+       ROS_FATAL_STREAM("ERROR datum config: " << e.getMessage() <<
+-		       " for geonav_transform (type: " 
++		       " for geonav_transform (type: "
+ 		       << datum_config.getType() << ")");
+       exit(1);
+     }
+-    
++
+     // Tell everyone we are ignoring yaw in the datum
+-    if (fabs(datum_yaw) > 0.01)
+-    {
+-      ROS_WARN("Yaw of the datum is ignored!");
+-    }
+-    datum_yaw = 0.0;
+ 
+     // Try to resolve tf_prefix
+     std::string tf_prefix = "";
+@@ -170,18 +166,18 @@ void GeonavTransform::run()
+     {
+       nh_priv.getParam(tf_prefix_path, tf_prefix);
+     }
+-    
++
+     // Append the tf prefix in a tf2-friendly manner
+     GeonavUtilities::appendPrefix(tf_prefix, utm_frame_id_);
+     GeonavUtilities::appendPrefix(tf_prefix, odom_frame_id_);
+     GeonavUtilities::appendPrefix(tf_prefix, base_link_frame_id_);
+-    
+-    // Convert specified yaw to quaternion 
++
++    // Convert specified yaw to quaternion
+     // Not currently effective since we ignore the yaw!
+     //quat.setRPY(0.0, 0.0, datum_yaw);
+   } // end of datum config.
+-  
+-  // Setup transforms and messages 
++
++  // Setup transforms and messages
+   nav_in_odom_.header.frame_id = odom_frame_id_;
+   nav_in_odom_.child_frame_id = base_link_frame_id_;
+   nav_in_odom_.header.seq = 0;
+@@ -196,7 +192,7 @@ void GeonavTransform::run()
+   transform_msg_odom2base_.header.seq = 0;
+ 
+   // Set datum - published static transform
+-  setDatum(datum_lat, datum_lon, 0.0, quat); // alt is 0.0 for now
++  setDatum(datum_lat, datum_lon, datum_alt, quat);
+ 
+   // Publisher - Odometry relative to the odom frame
+   odom_pub_ = nh.advertise<nav_msgs::Odometry>("geonav_odom", 10);
+@@ -204,7 +200,11 @@ void GeonavTransform::run()
+ 
+   // Publisher - Odometry in Geo frame
+   geo_pub_ = nh.advertise<nav_msgs::Odometry>("geonav_geo", 10);
+-  
++
++  nav_sat_fix_service_ = nh.advertiseService("geonav_sat_fix",
++											 &GeonavTransform::geoSetMapProjections,
++											 this);
++
+   // Subscriber - Odometry in GPS frame.
+   // for converstion from geo. coord. to local nav. coord.
+   ros::Subscriber geo_odom_sub = nh.subscribe("nav_odom", 1,
+@@ -215,18 +215,19 @@ void GeonavTransform::run()
+   ros::Subscriber nav_odom_sub = nh.subscribe("geo_odom", 1,
+ 					  &GeonavTransform::geoOdomCallback,
+ 					  this);
+-  
+-  
++
++
++
+   // Loop
+   ros::Rate rate(frequency);
+   while (ros::ok())
+   {
+     ros::spinOnce();
+ 
+-    // Check for odometry 
++    // Check for odometry
+     if ( (ros::Time::now().toSec()-nav_update_time_.toSec()) > 1.0 ){
+       ROS_WARN_STREAM("Haven't received Odometry on <"
+-		      << geo_odom_sub.getTopic() << "> for 1.0 seconds!" 
++		      << geo_odom_sub.getTopic() << "> for 1.0 seconds!"
+ 		      << " Will not broadcast transform!");
+     }
+     else{
+@@ -244,21 +245,21 @@ void GeonavTransform::broadcastTf(void)
+   transform_msg_odom2base_.transform = tf2::toMsg(transform_odom2base_);
+   tf_broadcaster_.sendTransform(transform_msg_odom2base_);
+ }
+-bool GeonavTransform::setDatum(double lat, double lon, double alt, 
++bool GeonavTransform::setDatum(double lat, double lon, double alt,
+ 			       tf2::Quaternion q)
+ {
+   double utm_x = 0;
+   double utm_y = 0;
+   NavsatConversions::LLtoUTM(lat, lon, utm_y, utm_x, utm_zone_);
+-  
+-  ROS_INFO_STREAM("Datum (latitude, longitude, altitude) is (" 
++
++  ROS_INFO_STREAM("Datum (latitude, longitude, altitude) is ("
+ 		  << std::fixed << lat << ", "
+ 		  << lon << ", " << alt << ")");
+   ROS_INFO_STREAM("Datum UTM Zone is: " << utm_zone_);
+-  ROS_INFO_STREAM("Datum UTM coordinate is (" 
++  ROS_INFO_STREAM("Datum UTM coordinate is ("
+ 		  << std::fixed << utm_x << ", " << utm_y << ")");
+ 
+-  
++
+   // Set the transform utm->odom
+   transform_utm2odom_.setOrigin(tf2::Vector3(utm_x, utm_y, alt));
+   transform_utm2odom_.setRotation(q);
+@@ -307,18 +308,18 @@ void GeonavTransform::navOdomCallback(const nav_msgs::OdometryConstPtr& msg)
+   double utmY = 0;
+   std::string utm_zone_tmp;
+   nav_update_time_ = ros::Time::now();
+-  NavsatConversions::LLtoUTM(msg->pose.pose.position.y, 
+-			     msg->pose.pose.position.x, 
++  NavsatConversions::LLtoUTM(msg->pose.pose.position.y,
++			     msg->pose.pose.position.x,
+ 			     utmY, utmX, utm_zone_tmp);
+   ROS_DEBUG_STREAM_THROTTLE(2.0,"Latest GPS (lat, lon, alt): "
+ 			    << msg->pose.pose.position.y << " , "
+ 			    << msg->pose.pose.position.x << " , "
+ 			    << msg->pose.pose.position.z );
+-  ROS_DEBUG_STREAM_THROTTLE(2.0,"UTM of latest GPS is (X,Y):" 
++  ROS_DEBUG_STREAM_THROTTLE(2.0,"UTM of latest GPS is (X,Y):"
+ 			    << utmX << " , " << utmY);
+ 
+   // For now the 'nav' frame is that same as the 'base_link' frame
+-  transform_utm2nav_.setOrigin(tf2::Vector3(utmX, utmY, 
++  transform_utm2nav_.setOrigin(tf2::Vector3(utmX, utmY,
+ 					  msg->pose.pose.position.z));
+   transform_utm2nav_.setRotation(tf2::Quaternion(msg->pose.pose.orientation.x,
+ 						 msg->pose.pose.orientation.y,
+@@ -354,18 +355,18 @@ void GeonavTransform::navOdomCallback(const nav_msgs::OdometryConstPtr& msg)
+   // odom2base = odom2nav = odom2utm * utm2nav
+   transform_odom2base_.mult(transform_utm2odom_inverse_,transform_utm2nav_);
+ 
+-  ROS_DEBUG_STREAM_THROTTLE(2.0,"utm2nav X:" 
+-			    << transform_utm2nav_.getOrigin()[0] 
++  ROS_DEBUG_STREAM_THROTTLE(2.0,"utm2nav X:"
++			    << transform_utm2nav_.getOrigin()[0]
+ 			    << "Y:" << transform_utm2nav_.getOrigin()[1] );
+-  ROS_DEBUG_STREAM_THROTTLE(2.0,"utm2odom X:" 
+-			    << transform_utm2odom_.getOrigin()[0] 
++  ROS_DEBUG_STREAM_THROTTLE(2.0,"utm2odom X:"
++			    << transform_utm2odom_.getOrigin()[0]
+ 			    << "Y:" << transform_utm2odom_.getOrigin()[1] );
+-  ROS_DEBUG_STREAM_THROTTLE(2.0,"utm2odom_inverse X:" 
+-			    << transform_utm2odom_inverse_.getOrigin()[0] 
+-			    << "Y:" 
++  ROS_DEBUG_STREAM_THROTTLE(2.0,"utm2odom_inverse X:"
++			    << transform_utm2odom_inverse_.getOrigin()[0]
++			    << "Y:"
+ 			    << transform_utm2odom_inverse_.getOrigin()[1] );
+-  ROS_DEBUG_STREAM_THROTTLE(2.0,"odom2base X:" 
+-			    << transform_odom2base_.getOrigin()[0] 
++  ROS_DEBUG_STREAM_THROTTLE(2.0,"odom2base X:"
++			    << transform_odom2base_.getOrigin()[0]
+ 			    << "Y:" << transform_odom2base_.getOrigin()[1] );
+ 
+ 
+@@ -384,6 +385,33 @@ void GeonavTransform::navOdomCallback(const nav_msgs::OdometryConstPtr& msg)
+   odom_pub_.publish(nav_in_odom_);
+ }  // navOdomCallback
+ 
++bool GeonavTransform::geoSetMapProjections(map_msgs::SetMapProjections::Request& req, map_msgs::SetMapProjections::Response& res)
++{
++    double roll, pitch, yaw;
++	double lat, lon, alt;
++
++	tf2::Vector3 tmp;
++	tmp = transform_utm2nav_.getOrigin();
++	NavsatConversions::UTMtoLL(tmp[1], tmp[0], utm_zone_,
++							   lat, lon);
++	alt = tmp[2];
++
++	tf::Quaternion q(nav_in_utm_.pose.pose.orientation.x,
++					 nav_in_utm_.pose.pose.orientation.y,
++					 nav_in_utm_.pose.pose.orientation.z,
++					 nav_in_utm_.pose.pose.orientation.w);
++
++	tf::Matrix3x3 m(q);
++    m.getRPY(roll, pitch, yaw);
++    tf2::Quaternion q2;
++	q2.setRPY(0.0, 0.0, yaw);
++
++	setDatum(lat, lon, alt, q2);
++
++	res = map_msgs::SetMapProjections::Response{};
++	return true;
++}
++
+ void GeonavTransform::geoOdomCallback(const nav_msgs::OdometryConstPtr& msg)
+ {
+   // Convert position from odometry frame to UTM
+@@ -398,19 +426,21 @@ void GeonavTransform::geoOdomCallback(const nav_msgs::OdometryConstPtr& msg)
+ 						 msg->pose.pose.orientation.w));
+   transform_odom2nav_inverse_ = transform_odom2nav_.inverse();
+   transform_utm2nav_.mult(transform_utm2odom_, transform_odom2nav_);
+-  
++
+   // Convert from UTM to LL
+   double lat;
+   double lon;
++  double alt = msg->pose.pose.position.z;
++
+   tf2::Vector3 tmp;
+   tmp = transform_utm2nav_.getOrigin();
+   NavsatConversions::UTMtoLL(tmp[1], tmp[0], utm_zone_,
+ 			     lat, lon);
+-    
++
+   nav_in_geo_.header.stamp = ros::Time::now();
+   nav_in_geo_.pose.pose.position.x = lon;
+   nav_in_geo_.pose.pose.position.y = lat;
+-  nav_in_geo_.pose.pose.position.z = 0.0;
++  nav_in_geo_.pose.pose.position.z = alt;
+   // Create orientation information directy from incoming orientation
+   nav_in_geo_.pose.pose.orientation = msg->pose.pose.orientation;
+   nav_in_geo_.pose.covariance = msg->pose.covariance;
+@@ -423,4 +453,3 @@ void GeonavTransform::geoOdomCallback(const nav_msgs::OdometryConstPtr& msg)
+ } // geoOdomCallback
+ 
+ } // namespace GeonavTransform
+-

@@ -17,7 +17,7 @@ camera_info_url: ""
 #  The supported encodings are 'mono8', 'bgr8', 'rgb8', 'bayer_bggr8',
 #  'bayer_gbrg8' and 'bayer_rggb8'
 #  Default values are 'mono8' and 'rgb8'
-# image_encoding: "mono8"
+# image_encoding: "bayer_bggr8"
 
 #  Binning factor to get downsampled images. It refers here to any camera
 #  setting which combines rectangular neighborhoods of pixels into larger
@@ -33,18 +33,18 @@ camera_info_url: ""
 #  Calling the GrabImages-Action can result in a higher framerate
 frame_rate: 20.0
 
-trigger_timeout: 5000  # in ms
+trigger_timeout: 500  # in ms
 grab_timeout: 500  # in ms
 
 # Camera grab strategy
 # 0 : GrabStrategy_OneByOne
 # 1 : GrabStrategy_LatestImageOnly
 # 2 : GrabStrategy_LatestImages
-grab_strategy : 0
+grab_strategy : 2
 
 ##--White Balance Auto--##
 # Automatically corrects color shifts in images acquired. 0 = Off, 1 = Once, 2 = Continuous
-# white_balance_auto : 0
+white_balance_auto : 2
 ##----------------------##
 
 ##--White balance--##
@@ -59,7 +59,7 @@ grab_strategy : 0
 #  Mode of camera's shutter.
 #  The supported modes are "rolling", "global" and "global_reset"
 #  Default value is "" (empty) means default_shutter_mode
-#shutter_mode: ""
+shutter_mode: "global"
 
 ##########################################################################
 ######################## Image Intensity Settings ########################
@@ -70,7 +70,7 @@ grab_strategy : 0
 ##########################################################################
 
 #  The exposure time in microseconds to be set after opening the camera.
-# exposure: 10000.0
+# exposure: 3122.0
 
 #  The target gain in percent of the maximal value the camera supports
 #  For USB-Cameras, the gain is in dB, for GigE-Cameras it is given in so
@@ -101,7 +101,7 @@ grab_strategy : 0
 #  trying to adapt to changing light conditions. This is only possible for
 #  values in the possible auto range of the pylon API which is e.g. [50 - 205]
 #  for acA2500-14um and acA1920-40gm
-# brightness_continuous: true
+brightness_continuous: true
 
 #  Only relevant, if 'brightness' is set:
 #  If the camera should try to reach and / or keep the brightness, hence
@@ -113,8 +113,8 @@ grab_strategy : 0
 #  reached by adapting the exposure time.
 #  The gain_auto flag indicates, that the desired brightness will be
 #  reached by adapting the gain.
-# exposure_auto: true
-# gain_auto: true
+exposure_auto: true
+gain_auto: true
 
 ##########################################################################
 

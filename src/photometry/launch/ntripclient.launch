@@ -7,7 +7,7 @@
     <param name="ntrip_port" value="2101" />
     <param name="ntrip_user" value="vladyslav30858" />
     <param name="ntrip_pass" value="ykhqsz" />
-    <param name="ntrip_stream" value="Nearest_3G" />
+    <param name="ntrip_stream" value="Nearest_CMR+" />
     <param name="nmea_gga" value="$GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60" />
     <param name="rtcm_topic" value="/rtcm" />
   </node>
