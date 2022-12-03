@@ -125,8 +125,8 @@ class PoseCollector:
 
     def _hud_info(self, msg):
         text = OverlayText()
-        text.width = 600
-        text.height = 400
+        text.width = 500
+        text.height = 200
         text.left = 10
         text.top = 10
         text.text_size = 12
@@ -152,9 +152,9 @@ class PoseCollector:
         msg += "\n"
         for name, st in self.xs_status.items():
             if st:
-                msg += '<span style="color: green;">%s</span> ' % name
+                msg += ' / <span style="color: green;">%s</span> ' % name
             else:
-                msg += '<span style="color: red;">%s</span> ' % name
+                msg += ' / <span style="color: red;">%s</span> ' % name
         msg += "\n- Scene: {} / Image: {}".format(self.folder_idx, self.img_idx)
 
         self._hud_info(msg)

@@ -7,24 +7,28 @@
     <param name="ntrip_port" value="2101" />
     <param name="ntrip_user" value="vladyslav30858" />
     <param name="ntrip_pass" value="ykhqsz" />
-    <param name="ntrip_stream" value="Nearest_CMR+" />
+    <param name="ntrip_stream" value="Nearest_3G" />
     <param name="nmea_gga" value="$GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60" />
     <param name="rtcm_topic" value="/rtcm" />
   </node>
+
+  <!-- <node pkg="ntrip_ros" type="ntripclient.py" name="ntrip_client" output="screen"> -->
+  <!--   <param name="ntrip_client" value="$(arg ntrip_client)" /> -->
+  <!--   <param name="ntrip_server" value="rtk2go.com" /> -->
+  <!--   <param name="ntrip_port" value="2101" /> -->
+  <!--   <param name="ntrip_user" value="lib.aca55a@gmail.com" /> -->
+  <!--   <param name="ntrip_pass" value="password" /> -->
+  <!--   <param name="ntrip_stream" value="ACACU" /> -->
+  <!--   <param name="nmea_gga" value="$GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60" /> -->
+  <!--   <param name="rtcm_topic" value="/rtcm" /> -->
+  <!-- </node> -->
+
 </launch>
 
 <!-- ntripclient -s rtk.rompos.ro -r 2101 -u vladyslav30858 -p ykhqsz -n '$GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60'  -M 4 -m Nearest_3.1 -->
 
 <!--
 
-    <param name="ntrip_client" value="$(arg ntrip_client)" />
-    <param name="ntrip_server" value="rtk2go.com" />
-    <param name="ntrip_port" value="2101" />
-    <param name="ntrip_user" value="lib.aca55a@gmail.com" />
-    <param name="ntrip_pass" value="password" />
-    <param name="ntrip_stream" value="ACACU" />
-    <param name="nmea_gga" value="$GPGGA,082306.468,4545.908,N,02113.821,E,1,12,1.0,0.0,M,0.0,M,,*60" />
-    <param name="rtcm_topic" value="/rtcm" />
 
 A_CMS_01;Exeter;
 ACACU;Curug;
