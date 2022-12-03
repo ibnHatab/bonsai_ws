@@ -22,6 +22,7 @@ from collections import OrderedDict
 
 from transforms3d import _euler_from_quaternion_msg
 from recorder import Recorder
+from diagnostic_msgs.msg import KeyValue
 
 #### DEBUG
 from geometry_msgs.msg import Pose, Point, Quaternion
@@ -53,16 +54,17 @@ text_pub = rospy.Publisher("text_rviz_hud", OverlayText, queue_size=1)
 class PoseCollector:
     args_cache_time = 0.3  # seconds
     camera_info = OrderedDict({
-        "fl_x": 1019.37,
-        "fl_y": 1016.04,
-        "k1": 0.,
-        "k2": 0.,
-        "p1": 0.,
-        "p2": 0.,
-        "cx": 632.40,
-        "cy": 490.07,
+        "fl_x": 1008.785600703726,
+        "fl_y": 1008.153829014085,
+        "cx": 620.725352114218,
+        "cy": 486.3101299756897,
         "w": 1280,
         "h": 960,
+        "camera_model": "OPENCV",
+        "k1": -0.4131778255776392,
+        "k2": 0.1488336060172014,
+        "p1": -0.0002996896647241871,
+        "p2": -0.0005385604028147197,
         "aabb_scale": 16,
     })
 
@@ -71,15 +73,11 @@ class PoseCollector:
         self.source_frame = "nerf_world"
         self.target_frame = "nerf_cam"
 
-        self.lookup_offset = -0.030  # 100 ms /  30hz
-        self.lookup_offset = -0.020  # 100 ms /  30hz
-        self.lookup_offset = -0.010  # 100 ms /  30hz
-        self.lookup_offset = -0.100  # 100 ms
         self.lookup_offset = -0.130  # watch 30 hz overlap OK (yaw -2')
-        # self.lookup_offset = 2.0522692674502518e-05  # rolling shutter
-        self.rosbag_enabled = False
+        self.viewer = False
         self.recorder = Recorder(subscribe=False)
 
+        self.xs_status = {}
         self.frames = []
         self.storage = None
         self.img_idx = 0
@@ -91,7 +89,7 @@ class PoseCollector:
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
         try:
-            self.rosbag_enabled = rospy.get_param('~rosbag_enabled')
+            self.viewer = rospy.get_param('~viewer')
         except KeyError:
             pass
 
@@ -105,16 +103,25 @@ class PoseCollector:
 
         rospy.Subscriber('/write_output', WriteMsg, self.shutter_cb, queue_size=1)
         rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
+        rospy.Subscriber('/status', KeyValue, self.xsens_status_cb)
 
-        image_topic = "/pylon_camera_node/image_rect"
-        rospy.Subscriber(image_topic, Image, self.image_callback)
+        rospy.Subscriber('/pylon_camera_node/image_raw', Image, self.image_callback)
 
+        # FIXME:
         # camera_info_topic = "/pylon_camera_node/camera_info"
         # rospy.Subscriber(camera_info_topic, Image, self.camera_info_callback)
 
         rospy.on_shutdown(self._save_transform)
 
         rospy.spin()
+
+    def xsens_status_cb(self, msg):
+        dw = int(msg.value, 2)
+
+        self.xs_status = {
+            'GpsValid': bool(dw & 0x04),
+            'RtkStatus': bool(dw & 0x18000000),
+        }
 
     def _hud_info(self, msg):
         text = OverlayText()
@@ -142,15 +149,27 @@ class PoseCollector:
                                                        math.degrees(euler[1]),
                                                        math.degrees(euler[2]),
                                                        p=precision)
+        msg += "\n"
+        for name, st in self.xs_status.items():
+            if st:
+                msg += '<span style="color: green;">%s</span> ' % name
+            else:
+                msg += '<span style="color: red;">%s</span> ' % name
         msg += "\n- Scene: {} / Image: {}".format(self.folder_idx, self.img_idx)
 
         self._hud_info(msg)
 
     def _get_lookup_transform(self, stamp=0):
 
+        exposure = rospy.Duration(.015411)
+        cam0_to_imu0_time = rospy.Duration(-0.17469761937472594)
+        timeshift = cam0_to_imu0_time + exposure
+        timeshift = cam0_to_imu0_time
+
         cur_time = rospy.Time.now()
+        # print(cur_time, stamp, cur_time-stamp)
         if stamp:
-            lookup_time = stamp
+            lookup_time = stamp + timeshift
         else:
             lookup_time = cur_time + rospy.Duration(self.lookup_offset)
 
@@ -163,12 +182,12 @@ class PoseCollector:
             msg = "At time {}, (current time {}) ".format(lookup_time.to_sec(),
                                                           cur_time.to_sec())
             rospy.logerr_once(msg + str(ex))
-            return None, None, None
+            return Point(), np.zeros(3), np.eye(4)
 
         except tf2.ExtrapolationException as ex:
             msg = "(current time {}) ".format(cur_time.to_sec())
             rospy.logerr_once(msg + str(ex))
-            return None, None, None
+            return Point(), np.zeros(3), np.eye(4)
 
         xyz = ts.transform.translation
         quat = ts.transform.rotation
@@ -201,7 +220,7 @@ class PoseCollector:
 
     def shutter_cb(self, msg):
 
-        if self.img_idx == 0:
+        if self.img_idx == 0 and not self.viewer:
             rospy.wait_for_service('geonav_sat_fix')
             try:
                 geonav_sat_fix = rospy.ServiceProxy('geonav_sat_fix', SetMapProjections)
@@ -210,15 +229,14 @@ class PoseCollector:
                 rospy.logerr ("Service call failed: %s"%e)
                 return
 
-            if self.rosbag_enabled:
-                self.recorder.switch_on()
+            self.recorder.switch_on()
             self.img_idx += 1
             return
 
         self.take_image = True
 
     def record_cb(self, msg):
-        print('>> record_cb ', self.folder_idx)
+        print('>> record_cb: ', self.folder_idx)
         self._save_transform()
         self.folder_idx += 1
         self.frames = []
@@ -227,13 +245,10 @@ class PoseCollector:
         self._make_scene_folder()
 
     def camera_info_callback(self, msg):
-
         if self.camera_info:  # pragme once
             return
-
         (fx, fy, cx, cy) = (msg.K[0], msg.K[4], msg.K[2], msg.K[5])
-        if msg.distortion_model == "plumb_bob":
-            k1, k2, t1, t2, k3 = msg.D
+        k1, k2, t1, t2, k3 = msg.D
 
         k1, k2 = 0., 0.  # save rectified image
         self.camera_info = OrderedDict({
@@ -241,8 +256,8 @@ class PoseCollector:
             "fl_y": fy,
             "k1": k1,
             "k2": k2,
-            "p1": 0.,
-            "p2": 0.,
+            "p1": t1,
+            "p2": t2,
             "cx": cx,
             "cy": cy,
             "w": msg.width,
@@ -251,64 +266,18 @@ class PoseCollector:
         })
 
     def image_callback(self, msg):
-        xyz, euler, transform_matrix = self._get_lookup_transform()
-        # xyz, euler, transform_matrix = self._get_lookup_transform(msg.header.stamp)
-
-        if not (xyz and euler):
-            return
+        xyz, euler, transform_matrix = self._get_lookup_transform(msg.header.stamp)
 
         self._display_hud(xyz, euler)
 
         if not self.take_image:
             return
 
-        ##### DEBUG odom
-        # cur_time = rospy.Time.now()
-        # lookup_time = cur_time + rospy.Duration(self.lookup_offset)
-        # ts = self.tf_buffer.lookup_transform('cam_world','cam_frame',
-        #                                      lookup_time)
-        # print('cam_world', 'cam_frame\n', transform_matrix)
-        # _, _, inv_transform_matrix = self._get_lookup_transform(True)
-        # print('cam_frame', 'cam_world\n', inv_transform_matrix)
-        # P = Pose(Point(ts.transform.translation.x,
-        #                ts.transform.translation.y,
-        #                ts.transform.translation.z), ts.transform.rotation)
-        # markers.publishAxis(P, 1, 0.1, 0)
-
-
-        rotation = transform_matrix[:3, :3]  # qvec2rotmat(im_data.qvec)
-        translation = transform_matrix[:3, 3]  # im_data.tvec.reshape(3, 1)
-        translation = translation.reshape(3, 1)
-
         ###  DEBUG cam_world
         quat = tf.transformations.quaternion_from_euler(*euler)
         P = Pose(Point(*transform_matrix[:3, 3]), Quaternion(*quat))
         markers.publishAxis(P, 1, 0.1, 0)
         #####
-
-        w2c = np.concatenate([rotation, translation], 1)
-        w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
-        c2w = np.linalg.inv(w2c)
-        # Convert from COLMAP's camera coordinate system to ours
-        c2w[0:3, 1:3] *= -1
-        c2w = c2w[np.array([1, 0, 2, 3]), :]
-        c2w[2, :] *= -1
-
-        w2_c2w = np.linalg.inv(c2w)
-        ###  DEBUG nerf_world w2c
-        _r = w2_c2w[:3, :3]
-        _t = w2_c2w[:3, 3]
-        _q = rotmat2qvec(_r)
-        _q = np.roll(_q, -1)
-        # P = Pose(Point(*_t), Quaternion(*_q))
-        # markers.publishAxis(P, 1, 0.1, 0)
-        #####
-
-
-        # print('--------------')
-        # print(w2c)
-        # print(c2w)
-
 
         try:
             # Convert your ROS Image message to OpenCV2

@@ -90,6 +90,7 @@ class Recorder:
             '/pylon_camera_node/status',
             # '/rosout',
             # '/rosout_agg',
+            '/status',
             '/temperature',
             '/tf',
             '/tf_static',
