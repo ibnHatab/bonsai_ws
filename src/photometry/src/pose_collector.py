@@ -28,6 +28,7 @@ from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import Pose, Point, Quaternion
 import rviz_tools
 import tf
+from sensor_msgs.msg import CameraInfo
 
 markers = rviz_tools.RvizMarkers('nerf_world', 'visualization_marker')
 
@@ -78,6 +79,7 @@ class PoseCollector:
         self.recorder = Recorder(subscribe=False)
 
         self.xs_status = {}
+        self.camera_info = None
         self.frames = []
         self.storage = None
         self.img_idx = 0
@@ -106,10 +108,7 @@ class PoseCollector:
         rospy.Subscriber('/status', KeyValue, self.xsens_status_cb)
 
         rospy.Subscriber('/pylon_camera_node/image_raw', Image, self.image_callback)
-
-        # FIXME:
-        # camera_info_topic = "/pylon_camera_node/camera_info"
-        # rospy.Subscriber(camera_info_topic, Image, self.camera_info_callback)
+        rospy.Subscriber('/pylon_camera_node/camera_info', CameraInfo, self.camera_info_callback)
 
         rospy.on_shutdown(self._save_transform)
 
@@ -121,12 +120,13 @@ class PoseCollector:
         self.xs_status = {
             'GpsValid': bool(dw & 0x04),
             'RtkStatus': bool(dw & 0x18000000),
+            'FilterMode': bool(dw & 0x03800000),
         }
 
     def _hud_info(self, msg):
         text = OverlayText()
-        text.width = 500
-        text.height = 200
+        text.width = 550
+        text.height = 180
         text.left = 10
         text.top = 10
         text.text_size = 12
@@ -212,7 +212,10 @@ class PoseCollector:
 
     def _save_transform(self):
         file_name = os.path.join(self.folder_path, 'transforms.json')
-        transform = OrderedDict(PoseCollector.camera_info)
+        if self.camera_info:
+            transform = OrderedDict(self.camera_info)
+        else:
+            transform = OrderedDict(PoseCollector.camera_info)
         transform['frames'] = self.frames
 
         with open(file_name, 'w') as outfile:
@@ -245,12 +248,13 @@ class PoseCollector:
         self._make_scene_folder()
 
     def camera_info_callback(self, msg):
+
         if self.camera_info:  # pragme once
             return
+
         (fx, fy, cx, cy) = (msg.K[0], msg.K[4], msg.K[2], msg.K[5])
         k1, k2, t1, t2, k3 = msg.D
 
-        k1, k2 = 0., 0.  # save rectified image
         self.camera_info = OrderedDict({
             "fl_x": fx,
             "fl_y": fy,
@@ -264,6 +268,7 @@ class PoseCollector:
             "h": msg.height,
             "aabb_scale": 16,
         })
+        print('Using CameraInfo:', self.camera_info)
 
     def image_callback(self, msg):
         xyz, euler, transform_matrix = self._get_lookup_transform(msg.header.stamp)
