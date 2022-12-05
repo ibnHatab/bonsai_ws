@@ -62,10 +62,10 @@ class PoseCollector:
         "w": 1280,
         "h": 960,
         "camera_model": "OPENCV",
-        "k1": -0.4131778255776392,
-        "k2": 0.1488336060172014,
-        "p1": -0.0002996896647241871,
-        "p2": -0.0005385604028147197,
+        "k1": 0.0,
+        "k2": 0.0,
+        "p1": 0.0,
+        "p2": 0.0,
         "aabb_scale": 16,
     })
 
@@ -76,6 +76,7 @@ class PoseCollector:
 
         self.lookup_offset = -0.130  # watch 30 hz overlap OK (yaw -2')
         self.viewer = False
+        self.use_rect = False
         self.recorder = Recorder(subscribe=False)
 
         self.xs_status = {}
@@ -92,6 +93,7 @@ class PoseCollector:
 
         try:
             self.viewer = rospy.get_param('~viewer')
+            self.use_rect = rospy.get_param('~use_rect')
         except KeyError:
             pass
 
@@ -107,8 +109,11 @@ class PoseCollector:
         rospy.Subscriber('/clicked_point', PointStamped, self.record_cb, queue_size = 1)
         rospy.Subscriber('/status', KeyValue, self.xsens_status_cb)
 
-        rospy.Subscriber('/pylon_camera_node/image_raw', Image, self.image_callback)
-        rospy.Subscriber('/pylon_camera_node/camera_info', CameraInfo, self.camera_info_callback)
+        if self.use_rect:
+            rospy.Subscriber('/pylon_camera_node/image_rect', Image, self.image_callback)
+        else:
+            rospy.Subscriber('/pylon_camera_node/image_raw', Image, self.image_callback)
+            rospy.Subscriber('/pylon_camera_node/camera_info', CameraInfo, self.camera_info_callback)
 
         rospy.on_shutdown(self._save_transform)
 
@@ -159,33 +164,27 @@ class PoseCollector:
 
         self._hud_info(msg)
 
-    def _get_lookup_transform(self, stamp=0):
+    def _get_lookup_transform(self, stamp):
 
         exposure = rospy.Duration(.015411)
         cam0_to_imu0_time = rospy.Duration(-0.17469761937472594)
-        timeshift = cam0_to_imu0_time + exposure
+
         timeshift = cam0_to_imu0_time
-
-        cur_time = rospy.Time.now()
-        # print(cur_time, stamp, cur_time-stamp)
-        if stamp:
-            lookup_time = stamp + timeshift
-        else:
-            lookup_time = cur_time + rospy.Duration(self.lookup_offset)
-
+        timeshift = cam0_to_imu0_time + exposure
+        lookup_time = stamp + timeshift
         try:
 
             ts = self.tf_buffer.lookup_transform(self.source_frame,
                                                  self.target_frame,
                                                  lookup_time)
         except tf2.LookupException as ex:
-            msg = "At time {}, (current time {}) ".format(lookup_time.to_sec(),
-                                                          cur_time.to_sec())
+            msg = "At time {}) ".format(lookup_time.to_sec(),
+                                        rospy.Time.now().to_sec())
             rospy.logerr_once(msg + str(ex))
             return Point(), np.zeros(3), np.eye(4)
 
         except tf2.ExtrapolationException as ex:
-            msg = "(current time {}) ".format(cur_time.to_sec())
+            msg = "(current time {}) ".format(rospy.Time.now().to_sec())
             rospy.logerr_once(msg + str(ex))
             return Point(), np.zeros(3), np.eye(4)
 
@@ -282,6 +281,29 @@ class PoseCollector:
         quat = tf.transformations.quaternion_from_euler(*euler)
         P = Pose(Point(*transform_matrix[:3, 3]), Quaternion(*quat))
         markers.publishAxis(P, 1, 0.1, 0)
+        #####
+
+        rotation = transform_matrix[:3, :3]  # qvec2rotmat(im_data.qvec)
+        translation = transform_matrix[:3, 3]  # im_data.tvec.reshape(3, 1)
+        translation = translation.reshape(3, 1)
+
+        w2c = np.concatenate([rotation, translation], 1)
+        w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
+        c2w = np.linalg.inv(w2c)
+        # Convert from COLMAP's camera coordinate system to ours
+        c2w[0:3, 1:3] *= -1
+        c2w = c2w[np.array([1, 0, 2, 3]), :]
+        c2w[2, :] *= -1
+##        transform_matrix = c2w
+
+# -        w2_c2w = np.linalg.inv(c2w)
+        ###  DEBUG nerf_world w2c
+# -        _r = w2_c2w[:3, :3]
+# -        _t = w2_c2w[:3, 3]
+# -        _q = rotmat2qvec(_r)
+# -        _q = np.roll(_q, -1)
+        # P = Pose(Point(*_t), Quaternion(*_q))
+        # markers.publishAxis(P, 1, 0.1, 0)
         #####
 
         try:

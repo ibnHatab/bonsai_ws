@@ -3,7 +3,7 @@
 
 
   <node pkg="geonav_transform" type="geonav_transform_node" name="geonav_transform_node" clear_params="true" output="screen">
-	<rosparam param="frequency">100</rosparam>
+	<rosparam param="frequency">300</rosparam>
 
     <!-- Datum as latitude, longitude [decimal deg.], yaw [ENU, degrees] -->
 	<rosparam param="datum">[45.765003199999995, 21.229186499999997, 138.977]</rosparam>

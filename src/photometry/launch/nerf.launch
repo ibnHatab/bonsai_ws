@@ -67,6 +67,7 @@
 
   <node name="pose_collector_node" pkg="photometry" type="pose_collector.py" output="screen">
   	<param name="viewer" type="bool" value="false"/>
+  	<param name="use_rect" type="bool" value="false"/>
 	<param name="storage" type="string" value="/mnt/storage"/>
   </node>
 

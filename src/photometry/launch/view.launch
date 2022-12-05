@@ -12,6 +12,13 @@
   <node
       pkg="tf2_ros"
       type="static_transform_publisher"
+      name="world_tf"
+      output="screen"
+      args="0 0 0 0 0 0 1 odom world" />
+
+  <node
+      pkg="tf2_ros"
+      type="static_transform_publisher"
       name="imu_cam_tf"
       output="screen"
 	  args="0.04764426 0.003006 -0.06890132 0.05318508307740607 0.026923683672322462 0.02939455826706646 ahrs_link cam_link" />
@@ -20,20 +27,6 @@
 
 
       <!--
-		   calibration PRY:
-		   T_cam0_imu0 = [[-0.03654804, -0.99932675, -0.00320891,  0.00057655],
-      ...                [ 0.00196132,  0.00313932, -0.99999315, -0.00558085],
-      ...                [ 0.99932997, -0.03655408,  0.00184526, -0.00515027],
-      ...                [ 0.        ,  0.        ,  0.        ,  1.        ],]
-	      Y-P-R
-            r = cam0_imu0[:3,:3]
-
-			ri = np.linalg.inv(r)
-			ypr = _euler_from_matrix(ri, axes='szyx')
-			Out[324]: (-3.087980008467189, 1.5341875218405738, 1.520358773355059)
-			list(map(math.radians, ypr))
-			Out[366]: [-0.053895418383514825, 0.02677662359913043, 0.026535266406628014]
-
 cam0_to_imu0 = np.array(
 [[-0.02805392, -0.00265369,  0.99960289,  0.04764426],
  [-0.99942525,  0.0191119 , -0.0279982 ,  0.003006  ],
@@ -50,9 +43,6 @@ t = cam0_to_imu0[:3,3]
 array([ 0.04764426,  0.003006  , -0.06890132])
 
 timeshift=-0.17469761937472594
-
-
-
 	  -->
 
 
@@ -92,6 +82,7 @@ timeshift=-0.17469761937472594
 
   <node name="pose_collector_node" pkg="photometry" type="pose_collector.py" output="screen">
   	<param name="viewer" type="bool" value="true"/>
+  	<param name="use_rect" type="bool" value="true"/>
 	<param name="storage" type="string" value="/mnt/storage"/>
   </node>
 
